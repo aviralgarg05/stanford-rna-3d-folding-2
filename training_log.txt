@@ -1,0 +1,65 @@
+# Training Iterations Log
+
+## Iteration 1 - Baseline Model
+**Date**: January 11, 2026
+**Status**: Running
+**Kernel**: https://www.kaggle.com/code/aviralgarg05/stanford-rna-3d-folding-starter
+
+### Configuration
+```python
+CONFIG = {
+    'max_len': 512,
+    'batch_size': 8,
+    'epochs': 15,
+    'lr': 5e-4,
+    'num_predictions': 5,
+    'embed_dim': 256,
+    'nhead': 8,
+    'num_layers': 6,
+    'dropout': 0.1,
+}
+```
+
+### Model Architecture
+- Transformer encoder (6 layers, 8 attention heads)
+- Positional encoding (sinusoidal)
+- 5 separate prediction heads for structural diversity
+- ~10M parameters
+
+### Expected Runtime
+- Training: 2-4 hours on Kaggle GPU (P100/T4)
+- Epochs: 15
+
+### Goals
+1. Establish baseline performance
+2. Verify data loading works correctly
+3. Check model trains without errors
+4. Get initial TM-score on validation set
+
+### Status Updates
+- 15:21 - Kernel pushed and started running
+- 15:24 - Confirmed running status (no output yet)
+- Waiting for first epoch completion...
+
+### Results
+- To be updated once training completes
+
+### Issues Found
+- None yet
+
+### Next Steps
+- Wait for training completion
+- Analyze validation loss curve
+- Check for overfitting
+- Optimize hyperparameters if needed
+
+---
+
+## Future Iterations
+
+### Planned Improvements
+1. **Data augmentation**: Add random noise, crops
+2. **MSA features**: Incorporate multiple sequence alignment data
+3. **Larger model**: Increase to 12 layers, 512 embed_dim
+4. **Better loss function**: Add distance matrix prediction
+5. **Ensemble**: Train multiple models with different seeds
