@@ -39,13 +39,18 @@ CONFIG = {
 ### Status Updates
 - 15:21 - Kernel pushed and started running
 - 15:24 - Confirmed running status (no output yet)
-- Waiting for first epoch completion...
-
-### Results
-- To be updated once training completes
+- 15:38 - **ISSUE FOUND**: Stuck at data loading (found only 1 structure, code hanging)
+- 15:40 - **FIX APPLIED**: Simplified data loading to handle single reference structure
+  - Removed complex multi-structure stacking
+  - Added progress indicators
+  - Replicate single target to 5 predictions during training
+- 15:41 - Pushed fixed version (v6)
 
 ### Issues Found
-- None yet
+1. **Data Loading Hang**: Original code tried to stack multiple structures but train_labels only has 1 structure
+   - **Root cause**: Complex loop iterating over structures without progress tracking
+   - **Fix**: Simplified to load only first structure, added progress prints
+   - **Impact**: Should complete data loading in <1 minute instead of hanging
 
 ### Next Steps
 - Wait for training completion
