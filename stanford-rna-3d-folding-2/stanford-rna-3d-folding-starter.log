@@ -1,0 +1,68 @@
+[{"stream_name":"stderr","time":7.066493493,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":7.066572463,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":7.066576903,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":7.066579514,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stderr","time":7.658049891,"data":"0.00s - Debugger warning: It seems that frozen modules are being used, which may\n"}
+,{"stream_name":"stderr","time":7.65808073,"data":"0.00s - make the debugger miss breakpoints. Please pass -Xfrozen_modules=off\n"}
+,{"stream_name":"stderr","time":7.658085926,"data":"0.00s - to python to disable frozen modules.\n"}
+,{"stream_name":"stderr","time":7.658090029,"data":"0.00s - Note: Debugging will proceed. Set PYDEVD_DISABLE_FILE_VALIDATION=1 to disable this validation.\n"}
+,{"stream_name":"stdout","time":12.876746575,"data":"Files: ['MSA', 'sample_submission.csv', 'validation_sequences.csv', 'test_sequences.csv', 'validation_labels.csv', 'extra', 'train_labels.csv', 'train_sequences.csv', 'PDB_RNA']\n"}
+,{"stream_name":"stdout","time":12.876800733,"data":"\n"}
+,{"stream_name":"stdout","time":12.876806111,"data":"--- train_sequences.csv ---\n"}
+,{"stream_name":"stdout","time":12.876810338,"data":"['target_id', 'sequence', 'temporal_cutoff', 'description', 'stoichiometry', 'all_sequences', 'ligand_ids', 'ligand_SMILES']\n"}
+,{"stream_name":"stdout","time":12.876814613,"data":"  target_id                                           sequence  \\\n"}
+,{"stream_name":"stdout","time":12.876819037,"data":"0      4TNA  GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGG...   \n"}
+,{"stream_name":"stdout","time":12.876822459,"data":"1      6TNA  GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGG...   \n"}
+,{"stream_name":"stdout","time":12.876826027,"data":"2      1TRA  GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGG...   \n"}
+,{"stream_name":"stdout","time":12.876829337,"data":"3      1TN2  GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGG...   \n"}
+,{"stream_name":"stdout","time":12.876832713,"data":"4      1TN1  GCGGAUUUAGCUCAGUUGGGAGAGCGCCAGACUGAAGAUCUGGAGG...   \n"}
+,{"stream_name":"stdout","time":12.876835826,"data":"\n"}
+,{"stream_name":"stdout","time":12.876838958,"data":"  temporal_cutoff                                        description  \\\n"}
+,{"stream_name":"stdout","time":12.876842377,"data":"0      1978-04-12  FURTHER REFINEMENT OF THE STRUCTURE OF YEAST T...   \n"}
+,{"stream_name":"stdout","time":12.876845943,"data":"1      1979-01-16  CRYSTAL STRUCTURE OF YEAST PHENYLALANINE T-RNA...   \n"}
+,{"stream_name":"stdout","time":12.876850103,"data":"2      1986-07-14  RESTRAINED REFINEMENT OF THE MONOCLINIC FORM O...   \n"}
+,{"stream_name":"stdout","time":12.876854113,"data":"3      1986-10-24  CRYSTALLOGRAPHIC AND BIOCHEMICAL INVESTIGATION...   \n"}
+,{"stream_name":"stdout","time":12.876857535,"data":"4      1987-01-15  CRYSTALLOGRAPHIC AND BIOCHEMICAL INVESTIGATION...   \n"}
+,{"stream_name":"stdout","time":12.876860924,"data":"\n"}
+,{"stream_name":"stdout","time":12.876864117,"data":"  stoichiometry                                      all_sequences ligand_ids  \\\n"}
+,{"stream_name":"stdout","time":12.876867465,"data":"0           A:1  \u003e4TNA_1|Chain A[auth A]|TRNAPHE|\\nGCGGAUUUAGCU...         MG   \n"}
+,{"stream_name":"stdout","time":12.87687128,"data":"1           A:1  \u003e6TNA_1|Chain A[auth A]|TRNAPHE|\\nGCGGAUUUAGCU...         MG   \n"}
+,{"stream_name":"stdout","time":12.876875341,"data":"2           A:1  \u003e1TRA_1|Chain A[auth A]|TRNAPHE|\\nGCGGAUUUAGCU...         MG   \n"}
+,{"stream_name":"stdout","time":12.876907106,"data":"3           A:1  \u003e1TN2_1|Chain A[auth A]|TRNAPHE|\\nGCGGAUUUAGCU...  MG;PB;SPM   \n"}
+,{"stream_name":"stdout","time":12.876916521,"data":"4           A:1  \u003e1TN1_1|Chain A[auth A]|TRNAPHE|\\nGCGGAUUUAGCU...  MG;PB;SPM   \n"}
+,{"stream_name":"stdout","time":12.876920359,"data":"\n"}
+,{"stream_name":"stdout","time":12.876923558,"data":"                    ligand_SMILES  \n"}
+,{"stream_name":"stdout","time":12.876927116,"data":"0                          [Mg+2]  \n"}
+,{"stream_name":"stdout","time":12.876930545,"data":"1                          [Mg+2]  \n"}
+,{"stream_name":"stdout","time":12.876934057,"data":"2                          [Mg+2]  \n"}
+,{"stream_name":"stdout","time":12.876937473,"data":"3  [Mg+2];[Pb+2];C(CCNCCCN)CNCCCN  \n"}
+,{"stream_name":"stdout","time":12.876940453,"data":"4  [Mg+2];[Pb+2];C(CCNCCCN)CNCCCN  \n"}
+,{"stream_name":"stdout","time":12.876943753,"data":"\n"}
+,{"stream_name":"stdout","time":12.876946886,"data":"--- train_labels.csv ---\n"}
+,{"stream_name":"stdout","time":12.876950135,"data":"['ID', 'resname', 'resid', 'x_1', 'y_1', 'z_1', 'chain', 'copy']\n"}
+,{"stream_name":"stdout","time":12.87695365,"data":"       ID resname  resid    x_1    y_1     z_1 chain  copy\n"}
+,{"stream_name":"stdout","time":12.876960291,"data":"0  157D_1       C      1  4.843 -5.640  13.265     A     1\n"}
+,{"stream_name":"stdout","time":12.876963986,"data":"1  157D_2       G      2  3.385 -7.613   8.267     A     1\n"}
+,{"stream_name":"stdout","time":12.876967545,"data":"2  157D_3       C      3  2.158 -6.751   2.949     A     1\n"}
+,{"stream_name":"stdout","time":12.876970984,"data":"3  157D_4       G      4  2.669 -4.843  -1.773     A     1\n"}
+,{"stream_name":"stdout","time":12.876974463,"data":"4  157D_5       A      5  3.509  0.239  -4.045     A     1\n"}
+,{"stream_name":"stdout","time":17.878923849,"data":"Initialized Model successfully.\n"}
+,{"stream_name":"stdout","time":18.230718853,"data":"Iter 0, Loss: 1.0074\n"}
+,{"stream_name":"stdout","time":18.230744819,"data":"Iter 2, Loss: 1.0032\n"}
+,{"stream_name":"stdout","time":18.23075246,"data":"Iter 4, Loss: 0.9998\n"}
+,{"stream_name":"stdout","time":18.230757676,"data":"Iter 6, Loss: 0.9994\n"}
+,{"stream_name":"stdout","time":18.230762615,"data":"Iter 8, Loss: 0.9971\n"}
+,{"stream_name":"stdout","time":18.230767647,"data":"Model saved to model.pth\n"}
+,{"stream_name":"stderr","time":21.901537965,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":21.901580707,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":22.073412298,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":22.07344041,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":22.734483686,"data":"/usr/local/lib/python3.12/dist-packages/traitlets/traitlets.py:2915: FutureWarning: --Exporter.preprocessors=[\"remove_papermill_header.RemovePapermillHeader\"] for containers is deprecated in traitlets 5.0. You can pass `--Exporter.preprocessors item` ... multiple times to add items to a list.\n"}
+,{"stream_name":"stderr","time":22.734520196,"data":"  warn(\n"}
+,{"stream_name":"stderr","time":22.774648778,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to notebook\n"}
+,{"stream_name":"stderr","time":23.064558537,"data":"[NbConvertApp] Writing 10758 bytes to __notebook__.ipynb\n"}
+,{"stream_name":"stderr","time":25.436692365,"data":"/usr/local/lib/python3.12/dist-packages/traitlets/traitlets.py:2915: FutureWarning: --Exporter.preprocessors=[\"nbconvert.preprocessors.ExtractOutputPreprocessor\"] for containers is deprecated in traitlets 5.0. You can pass `--Exporter.preprocessors item` ... multiple times to add items to a list.\n"}
+,{"stream_name":"stderr","time":25.436729191,"data":"  warn(\n"}
+,{"stream_name":"stderr","time":25.460973626,"data":"[NbConvertApp] Converting notebook __notebook__.ipynb to html\n"}
+,{"stream_name":"stderr","time":26.239857267,"data":"[NbConvertApp] Writing 295449 bytes to __results__.html\n"}
+]
