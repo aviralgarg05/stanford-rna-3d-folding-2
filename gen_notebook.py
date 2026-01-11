@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+import json
+
+cells = []
+
+# Cell 1: Markdown header
+cells.append({
+    "cell_type": "markdown",
+    "metadata": {},
+    "source": [
+        "# Stanford RNA 3D Folding - Training v2\n",
+        "\n",
+        "**Key Fixes**:\n",
+        "- Coordinate normalization (prevents exploding loss)\n",
+        "- num_workers=0 (prevents multiprocessing errors)\n",
+        "- NaN/Inf checks in loss\n",
+        "- Faster preprocessing"
+    ]
+})
+
+# Cell 2: Imports
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "import os, gc, time, random\n",
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "import torch\n",
+        "import torch.nn as nn\n",
+        "from torch.utils.data import Dataset, DataLoader\n",
+        "from torch.optim import AdamW\n",
+        "from torch.optim.lr_scheduler import CosineAnnealingLR\n",
+        "import warnings\n",
+        "warnings.filterwarnings('ignore')\n",
+        "\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Starting...')\n",
+        "\n",
+        "def set_seed(seed=42):\n",
+        "    random.seed(seed)\n",
+        "    np.random.seed(seed)\n",
+        "    torch.manual_seed(seed)\n",
+        "    torch.cuda.manual_seed_all(seed)\n",
+        "\n",
+        "set_seed(42)\n",
+        "device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Device: {device}')\n",
+        "if torch.cuda.is_available():\n",
+        "    print(f'[{time.strftime(\"%H:%M:%S\")}] GPU: {torch.cuda.get_device_name(0)}')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 3: Config
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "CONFIG = {\n",
+        "    'data_dir': '../input/stanford-rna-3d-folding-2',\n",
+        "    'max_len': 384,\n",
+        "    'batch_size': 16,\n",
+        "    'epochs': 30,\n",
+        "    'lr': 1e-3,\n",
+        "    'min_lr': 1e-5,\n",
+        "    'weight_decay': 0.01,\n",
+        "    'gradient_clip': 1.0,\n",
+        "    'warmup_epochs': 3,\n",
+        "    'vocab_size': 5,\n",
+        "    'embed_dim': 256,\n",
+        "    'nhead': 8,\n",
+        "    'num_layers': 6,\n",
+        "    'num_predictions': 5,\n",
+        "    'dropout': 0.1,\n",
+        "    'num_workers': 0,\n",
+        "    'save_path': './model.pth',\n",
+        "}\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Config loaded')\n",
+        "for k, v in CONFIG.items(): print(f'  {k}: {v}')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 4: Load data
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === LOADING DATA ===')\n",
+        "train_seq = pd.read_csv(os.path.join(CONFIG['data_dir'], 'train_sequences.csv'))\n",
+        "val_seq = pd.read_csv(os.path.join(CONFIG['data_dir'], 'validation_sequences.csv'))\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Train: {len(train_seq)}, Val: {len(val_seq)}')\n",
+        "\n",
+        "train_labels = pd.read_csv(os.path.join(CONFIG['data_dir'], 'train_labels.csv'))\n",
+        "val_labels = pd.read_csv(os.path.join(CONFIG['data_dir'], 'validation_labels.csv'))\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Labels: train={len(train_labels)}, val={len(val_labels)}')\n",
+        "print(f'Columns: {train_labels.columns.tolist()[:8]}')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 5: Preprocessing
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === PREPROCESSING ===')\n",
+        "\n",
+        "def preprocess_labels(df, name):\n",
+        "    start = time.time()\n",
+        "    df = df.copy()\n",
+        "    df['target_id'] = df['ID'].str.rsplit('_', n=1).str[0]\n",
+        "    \n",
+        "    x_col = 'x_1' if 'x_1' in df.columns else 'x'\n",
+        "    y_col = 'y_1' if 'y_1' in df.columns else 'y'\n",
+        "    z_col = 'z_1' if 'z_1' in df.columns else 'z'\n",
+        "    \n",
+        "    coords_dict = {}\n",
+        "    grouped = df.groupby('target_id')\n",
+        "    total = len(grouped)\n",
+        "    \n",
+        "    for i, (tid, grp) in enumerate(grouped):\n",
+        "        if i % 1000 == 0:\n",
+        "            print(f'[{time.strftime(\"%H:%M:%S\")}] {name}: {i}/{total}')\n",
+        "        grp = grp.sort_values('ID')\n",
+        "        coords = np.stack([grp[x_col].values, grp[y_col].values, grp[z_col].values], axis=1).astype(np.float32)\n",
+        "        coords = np.nan_to_num(coords, nan=0.0)\n",
+        "        coords_dict[tid] = coords\n",
+        "    \n",
+        "    all_c = np.concatenate(list(coords_dict.values()), axis=0)\n",
+        "    mean = np.mean(all_c, axis=0)\n",
+        "    std = np.std(all_c, axis=0) + 1e-8\n",
+        "    print(f'[{time.strftime(\"%H:%M:%S\")}] {name}: {len(coords_dict)} targets in {time.time()-start:.1f}s')\n",
+        "    print(f'Mean: {mean}, Std: {std}')\n",
+        "    return coords_dict, mean, std\n",
+        "\n",
+        "train_coords, COORD_MEAN, COORD_STD = preprocess_labels(train_labels, 'train')\n",
+        "val_coords, _, _ = preprocess_labels(val_labels, 'val')\n",
+        "del train_labels, val_labels\n",
+        "gc.collect()\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Preprocessing done!')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 6: Dataset
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "class RNADataset(Dataset):\n",
+        "    def __init__(self, seq_df, coords_dict, max_len, coord_mean, coord_std, aug=False):\n",
+        "        self.max_len = max_len\n",
+        "        self.aug = aug\n",
+        "        self.base2int = {'A': 0, 'C': 1, 'G': 2, 'U': 3, 'N': 4}\n",
+        "        self.coord_mean = coord_mean\n",
+        "        self.coord_std = coord_std\n",
+        "        valid_ids = set(coords_dict.keys())\n",
+        "        self.seq_df = seq_df[seq_df['target_id'].isin(valid_ids)].reset_index(drop=True)\n",
+        "        self.coords_dict = coords_dict\n",
+        "        print(f'[{time.strftime(\"%H:%M:%S\")}] Dataset: {len(self.seq_df)}')\n",
+        "    \n",
+        "    def __len__(self): return len(self.seq_df)\n",
+        "    \n",
+        "    def __getitem__(self, idx):\n",
+        "        row = self.seq_df.iloc[idx]\n",
+        "        seq = row['sequence']\n",
+        "        seq_ids = [self.base2int.get(c.upper(), 4) for c in seq[:self.max_len]]\n",
+        "        orig_len = len(seq_ids)\n",
+        "        \n",
+        "        coords = self.coords_dict[row['target_id']][:self.max_len].copy()\n",
+        "        coords = (coords - self.coord_mean) / self.coord_std  # NORMALIZE\n",
+        "        coord_len = len(coords)\n",
+        "        orig_len = min(orig_len, coord_len)\n",
+        "        \n",
+        "        if self.aug and random.random() > 0.5:\n",
+        "            a = random.uniform(0, 2*np.pi)\n",
+        "            R = np.array([[np.cos(a), -np.sin(a), 0], [np.sin(a), np.cos(a), 0], [0, 0, 1]], dtype=np.float32)\n",
+        "            coords = coords @ R.T\n",
+        "        \n",
+        "        if len(seq_ids) < self.max_len: seq_ids += [4] * (self.max_len - len(seq_ids))\n",
+        "        if len(coords) < self.max_len: coords = np.pad(coords, ((0, self.max_len-len(coords)), (0,0)))\n",
+        "        \n",
+        "        mask = np.zeros(self.max_len, dtype=bool)\n",
+        "        mask[:orig_len] = True\n",
+        "        return torch.tensor(seq_ids, dtype=torch.long), torch.tensor(coords, dtype=torch.float32), torch.tensor(mask, dtype=torch.bool), orig_len\n",
+        "\n",
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === DATASETS ===')\n",
+        "train_ds = RNADataset(train_seq, train_coords, CONFIG['max_len'], COORD_MEAN, COORD_STD, aug=True)\n",
+        "val_ds = RNADataset(val_seq, val_coords, CONFIG['max_len'], COORD_MEAN, COORD_STD, aug=False)\n",
+        "train_loader = DataLoader(train_ds, batch_size=CONFIG['batch_size'], shuffle=True, num_workers=0, pin_memory=True, drop_last=True)\n",
+        "val_loader = DataLoader(val_ds, batch_size=CONFIG['batch_size'], shuffle=False, num_workers=0, pin_memory=True)\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Train batches: {len(train_loader)}, Val batches: {len(val_loader)}')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 7: Data verification
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === DATA CHECK ===')\n",
+        "batch = next(iter(train_loader))\n",
+        "seq, coords, mask, lens = batch\n",
+        "print(f'Shapes: seq={seq.shape}, coords={coords.shape}')\n",
+        "print(f'Coords normalized: min={coords.min():.3f}, max={coords.max():.3f}, mean={coords.mean():.3f}')\n",
+        "assert not torch.isnan(coords).any() and not torch.isinf(coords).any(), 'Bad data!'\n",
+        "print('Data OK!')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 8: Model
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "class PositionalEncoding(nn.Module):\n",
+        "    def __init__(self, d_model, max_len=5000):\n",
+        "        super().__init__()\n",
+        "        pe = torch.zeros(max_len, d_model)\n",
+        "        pos = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)\n",
+        "        div = torch.exp(torch.arange(0, d_model, 2).float() * (-np.log(10000.0) / d_model))\n",
+        "        pe[:, 0::2] = torch.sin(pos * div)\n",
+        "        pe[:, 1::2] = torch.cos(pos * div)\n",
+        "        self.register_buffer('pe', pe.unsqueeze(0))\n",
+        "    def forward(self, x): return x + self.pe[:, :x.size(1)]\n",
+        "\n",
+        "class RNAModel(nn.Module):\n",
+        "    def __init__(self, vocab=5, dim=256, heads=8, layers=6, n_pred=5, drop=0.1, max_len=512):\n",
+        "        super().__init__()\n",
+        "        self.n_pred = n_pred\n",
+        "        self.emb = nn.Embedding(vocab, dim, padding_idx=4)\n",
+        "        self.pos = PositionalEncoding(dim, max_len)\n",
+        "        self.drop = nn.Dropout(drop)\n",
+        "        enc = nn.TransformerEncoderLayer(d_model=dim, nhead=heads, dim_feedforward=dim*4, dropout=drop, batch_first=True, norm_first=True, activation='gelu')\n",
+        "        self.transformer = nn.TransformerEncoder(enc, num_layers=layers)\n",
+        "        self.heads = nn.ModuleList([nn.Sequential(nn.Linear(dim, dim), nn.GELU(), nn.Dropout(drop), nn.Linear(dim, 3)) for _ in range(n_pred)])\n",
+        "        self._init()\n",
+        "    \n",
+        "    def _init(self):\n",
+        "        for p in self.parameters():\n",
+        "            if p.dim() > 1: nn.init.xavier_uniform_(p)\n",
+        "    \n",
+        "    def forward(self, x, mask=None):\n",
+        "        x = self.drop(self.pos(self.emb(x)))\n",
+        "        x = self.transformer(x, src_key_padding_mask=~mask if mask is not None else None)\n",
+        "        return torch.stack([h(x) for h in self.heads], dim=3)\n",
+        "\n",
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === MODEL ===')\n",
+        "model = RNAModel(CONFIG['vocab_size'], CONFIG['embed_dim'], CONFIG['nhead'], CONFIG['num_layers'], CONFIG['num_predictions'], CONFIG['dropout'], CONFIG['max_len']).to(device)\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Params: {sum(p.numel() for p in model.parameters()):,}')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 9: Loss
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "class SafeLoss(nn.Module):\n",
+        "    def forward(self, pred, target, mask):\n",
+        "        b, s, _, n = pred.shape\n",
+        "        t_exp = target.unsqueeze(3).expand(-1, -1, -1, n)\n",
+        "        mse = ((pred - t_exp) ** 2).sum(dim=2)\n",
+        "        mse_masked = mse * mask.unsqueeze(2).float()\n",
+        "        valid = mask.sum(dim=1, keepdim=True).clamp(min=1).float()\n",
+        "        per_pred = mse_masked.sum(dim=1) / valid\n",
+        "        best = per_pred.min(dim=1)[0].mean()\n",
+        "        avg = per_pred.mean()\n",
+        "        return torch.clamp(0.5 * best + 0.5 * avg, max=1e6), best, avg\n",
+        "\n",
+        "criterion = SafeLoss()\n",
+        "optimizer = AdamW(model.parameters(), lr=CONFIG['lr'], weight_decay=CONFIG['weight_decay'])\n",
+        "scheduler = CosineAnnealingLR(optimizer, T_max=CONFIG['epochs']-CONFIG['warmup_epochs'], eta_min=CONFIG['min_lr'])\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Loss & optimizer ready')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 10: Training functions
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "def train_epoch(model, loader, crit, opt, dev, epoch, cfg):\n",
+        "    model.train()\n",
+        "    total = 0\n",
+        "    n = len(loader)\n",
+        "    if epoch < cfg['warmup_epochs']:\n",
+        "        lr = cfg['lr'] * (epoch + 1) / cfg['warmup_epochs']\n",
+        "        for pg in opt.param_groups: pg['lr'] = lr\n",
+        "    for i, (seq, coords, mask, _) in enumerate(loader):\n",
+        "        seq, coords, mask = seq.to(dev), coords.to(dev), mask.to(dev)\n",
+        "        opt.zero_grad()\n",
+        "        pred = model(seq, mask)\n",
+        "        loss, _, _ = crit(pred, coords, mask)\n",
+        "        if torch.isnan(loss) or torch.isinf(loss):\n",
+        "            print(f'[{time.strftime(\"%H:%M:%S\")}] WARN: NaN/Inf batch {i}')\n",
+        "            continue\n",
+        "        loss.backward()\n",
+        "        torch.nn.utils.clip_grad_norm_(model.parameters(), cfg['gradient_clip'])\n",
+        "        opt.step()\n",
+        "        total += loss.item()\n",
+        "        if i % 50 == 0: print(f'[{time.strftime(\"%H:%M:%S\")}] E{epoch+1} B{i}/{n}: {loss.item():.4f}')\n",
+        "    return total / n\n",
+        "\n",
+        "@torch.no_grad()\n",
+        "def validate(model, loader, crit, dev):\n",
+        "    model.eval()\n",
+        "    total = 0\n",
+        "    for seq, coords, mask, _ in loader:\n",
+        "        seq, coords, mask = seq.to(dev), coords.to(dev), mask.to(dev)\n",
+        "        loss, _, _ = crit(model(seq, mask), coords, mask)\n",
+        "        if not (torch.isnan(loss) or torch.isinf(loss)): total += loss.item()\n",
+        "    return total / max(len(loader), 1)\n",
+        "\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] Training functions ready')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 11: Training loop
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] ' + '='*50)\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] STARTING TRAINING')\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] ' + '='*50)\n",
+        "\n",
+        "best_val = float('inf')\n",
+        "history = {'train': [], 'val': []}\n",
+        "\n",
+        "for epoch in range(CONFIG['epochs']):\n",
+        "    t0 = time.time()\n",
+        "    print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === EPOCH {epoch+1}/{CONFIG[\"epochs\"]} ===')\n",
+        "    \n",
+        "    train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch, CONFIG)\n",
+        "    val_loss = validate(model, val_loader, criterion, device)\n",
+        "    \n",
+        "    if epoch >= CONFIG['warmup_epochs']: scheduler.step()\n",
+        "    \n",
+        "    history['train'].append(train_loss)\n",
+        "    history['val'].append(val_loss)\n",
+        "    \n",
+        "    print(f'[{time.strftime(\"%H:%M:%S\")}] Epoch {epoch+1}: train={train_loss:.4f}, val={val_loss:.4f}, lr={optimizer.param_groups[0][\"lr\"]:.2e}, time={time.time()-t0:.1f}s')\n",
+        "    \n",
+        "    if val_loss < best_val:\n",
+        "        best_val = val_loss\n",
+        "        print(f'[{time.strftime(\"%H:%M:%S\")}] NEW BEST! Saving...')\n",
+        "        torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'val_loss': val_loss, 'config': CONFIG, 'coord_mean': COORD_MEAN, 'coord_std': COORD_STD}, CONFIG['save_path'])\n",
+        "\n",
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] ' + '='*50)\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] DONE! Best val: {best_val:.6f}')\n",
+        "print(f'[{time.strftime(\"%H:%M:%S\")}] ' + '='*50)"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Cell 12: Final check
+cells.append({
+    "cell_type": "code",
+    "metadata": {},
+    "source": [
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] === FINAL CHECK ===')\n",
+        "ckpt = torch.load(CONFIG['save_path'], map_location=device)\n",
+        "model.load_state_dict(ckpt['model_state_dict'])\n",
+        "model.eval()\n",
+        "print(f'Loaded epoch {ckpt[\"epoch\"]+1}, val_loss={ckpt[\"val_loss\"]:.6f}')\n",
+        "\n",
+        "with torch.no_grad():\n",
+        "    batch = next(iter(val_loader))\n",
+        "    seq, coords, mask, lens = batch\n",
+        "    pred = model(seq.to(device), mask.to(device))\n",
+        "    print(f'Pred shape: {pred.shape}')\n",
+        "    print(f'Pred range: [{pred.min():.3f}, {pred.max():.3f}]')\n",
+        "    \n",
+        "    # Denormalized RMSD\n",
+        "    p = pred[0, :, :, 0].cpu().numpy() * COORD_STD + COORD_MEAN\n",
+        "    t = coords[0].numpy() * COORD_STD + COORD_MEAN\n",
+        "    L = lens[0].item()\n",
+        "    rmsd = np.sqrt(((p[:L] - t[:L])**2).mean())\n",
+        "    print(f'Sample RMSD: {rmsd:.2f} Angstroms')\n",
+        "\n",
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] Training history:')\n",
+        "for i, (tr, va) in enumerate(zip(history['train'], history['val'])):\n",
+        "    print(f'  Epoch {i+1}: train={tr:.4f}, val={va:.4f}')\n",
+        "\n",
+        "print(f'\\n[{time.strftime(\"%H:%M:%S\")}] NOTEBOOK COMPLETE!')"
+    ],
+    "execution_count": None,
+    "outputs": []
+})
+
+# Create notebook
+notebook = {
+    "cells": cells,
+    "metadata": {
+        "kernelspec": {
+            "display_name": "Python 3",
+            "language": "python",
+            "name": "python3"
+        }
+    },
+    "nbformat": 4,
+    "nbformat_minor": 4
+}
+
+with open('train_remote.ipynb', 'w') as f:
+    json.dump(notebook, f, indent=1)
+
+print('Notebook created successfully!')
