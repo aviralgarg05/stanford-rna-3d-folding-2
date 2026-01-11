@@ -132,11 +132,33 @@ model = RNAStructurePredictor(
 ).to(device)
 
 # Load checkpoint - weights_only=False for PyTorch 2.6+
+print(f"Loading from: {CONFIG['model_path']}")
+print(f"Path exists: {os.path.exists(CONFIG['model_path'])}")
+
+# List available files in input directory
+import glob
+print(f"Available files: {glob.glob('../input/stanford-rna-3d-folding-starter/*')}")
+
 ckpt = torch.load(CONFIG['model_path'], map_location=device, weights_only=False)
-model.load_state_dict(ckpt['model_state_dict'])
+print(f"Checkpoint type: {type(ckpt)}")
+print(f"Checkpoint keys: {ckpt.keys() if isinstance(ckpt, dict) else 'not a dict'}")
+
+if isinstance(ckpt, dict) and 'model_state_dict' in ckpt:
+    model.load_state_dict(ckpt['model_state_dict'])
+    # Update normalization from checkpoint if available
+    if 'coord_mean' in ckpt:
+        TRAIN_MEAN = ckpt['coord_mean']
+        TRAIN_STD = ckpt['coord_std']
+        print(f"Using checkpoint normalization - Mean: {TRAIN_MEAN}, Std: {TRAIN_STD}")
+elif isinstance(ckpt, dict):
+    # Maybe it's just the state dict directly
+    model.load_state_dict(ckpt)
+else:
+    raise ValueError(f"Unknown checkpoint format: {type(ckpt)}")
+
 model.eval()
 
-print(f"Loaded model from epoch {ckpt.get('epoch', 'unknown')}")
+print(f"Loaded model from epoch {ckpt.get('epoch', 'unknown') if isinstance(ckpt, dict) else 'N/A'}")
 print(f"[{time.strftime('%H:%M:%S')}] Model loaded!")""")
 
 # Cell 6: Load test data

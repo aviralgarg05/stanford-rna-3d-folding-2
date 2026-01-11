@@ -1,7 +1,7 @@
 {
-  "id": "aviralgarg05/rna-3d-inference",
-  "title": "RNA 3D Inference",
-  "code_file": "inference_submission.ipynb",
+  "id": "aviralgarg05/stanford-rna-3d-folding-starter",
+  "title": "Stanford RNA 3D Folding Starter",
+  "code_file": "train_and_submit.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": "true",
@@ -12,8 +12,6 @@
   "competition_sources": [
     "stanford-rna-3d-folding-2"
   ],
-  "kernel_sources": [
-    "aviralgarg05/stanford-rna-3d-folding-starter"
-  ],
+  "kernel_sources": [],
   "model_sources": []
 }
